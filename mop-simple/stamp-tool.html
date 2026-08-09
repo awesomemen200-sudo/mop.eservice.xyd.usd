@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MOP — stamp a PDF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+  :root{--paper:#E4DCC8;--surface:#F7F3E8;--ink:#23241F;--stamp:#B0362A;--olive:#55603F;--line:#B8A98A;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:Arial,sans-serif;}
+  .wrap{max-width:620px;margin:0 auto;padding:32px 20px 64px;}
+  .header{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px double var(--ink);padding-bottom:14px;margin-bottom:6px;flex-wrap:wrap;gap:12px;}
+  .logo{font-family:'Courier New',monospace;font-weight:700;font-size:34px;letter-spacing:2px;}
+  .logo span{color:var(--stamp);}
+  .tag{font-family:'Courier New',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--surface);background:var(--stamp);padding:5px 10px;transform:rotate(-2deg);display:inline-block;border:1px solid var(--ink);}
+  .sub{font-family:'Courier New',monospace;font-size:12px;letter-spacing:1px;color:var(--olive);text-transform:uppercase;margin:10px 0 28px;}
+  .card{background:var(--surface);border:1px solid var(--ink);padding:20px;margin-bottom:20px;}
+  label{display:block;font-family:'Courier New',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--olive);margin-bottom:6px;}
+  input[type=text]{width:100%;padding:9px 10px;border:1px solid var(--line);background:#fff;font-family:'Courier New',monospace;font-size:13px;margin-bottom:16px;}
+  input[type=file]{font-family:'Courier New',monospace;font-size:12.5px;margin-bottom:16px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .row > div{flex:1;min-width:180px;}
+  .btn{font-family:'Courier New',monospace;font-size:12px;letter-spacing:.5px;text-transform:uppercase;background:var(--ink);color:var(--surface);border:1px solid var(--ink);padding:10px 16px;cursor:pointer;}
+  .btn:hover{background:var(--stamp);border-color:var(--stamp);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .status{font-family:'Courier New',monospace;font-size:12px;margin-top:14px;min-height:16px;}
+  .status.ok{color:var(--olive);}
+  .status.err{color:var(--stamp);}
+  .preview{display:flex;align-items:center;gap:14px;margin-top:16px;}
+  .preview img{width:70px;height:70px;border:1px solid var(--line);}
+  .preview .url{font-family:'Courier New',monospace;font-size:11px;word-break:break-all;color:#5a5644;}
+  .steps{font-family:'Courier New',monospace;font-size:12px;line-height:1.7;color:#5a5644;}
+  .steps b{color:var(--ink);}
+  a.back{font-family:'Courier New',monospace;font-size:11px;color:var(--olive);}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo">M<span>O</span>P.</div>
+      <div class="tag">stamp tool</div>
+    </div>
+    <div class="sub">Runs in your browser only — nothing is uploaded anywhere</div>
+
+    <div class="card">
+      <div class="steps">
+        Use this <b>before</b> you host a PDF. It stamps a QR code onto
+        every page, pointing back to where the file will live once it's
+        online. Then move the downloaded, stamped file into your
+        <b>pdfs</b> folder as usual and add it to <b>files.js</b>.
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Site base URL (where you deploy this project)</label>
+      <input type="text" id="baseUrl" placeholder="https://yourusername.github.io/mop-eservice" />
+
+      <label>Choose a PDF</label>
+      <input type="file" id="fileInput" accept="application/pdf" />
+
+      <div class="row">
+        <div>
+          <label>Filename it will have in the pdfs folder</label>
+          <input type="text" id="filename" placeholder="report.pdf" />
+        </div>
+      </div>
+
+      <button class="btn" id="stampBtn" disabled>Stamp &amp; download</button>
+      <div class="status" id="status"></div>
+
+      <div class="preview" id="preview" style="display:none;">
+        <div id="qrPreview"></div>
+        <div class="url" id="urlPreview"></div>
+      </div>
+    </div>
+
+    <a class="back" href="index.html">&larr; back to document counter</a>
+  </div>
+
+  <script>
+    const baseUrlEl = document.getElementById('baseUrl');
+    const fileInput = document.getElementById('fileInput');
+    const filenameEl = document.getElementById('filename');
+    const stampBtn = document.getElementById('stampBtn');
+    const statusEl = document.getElementById('status');
+    const previewEl = document.getElementById('preview');
+    const qrPreviewEl = document.getElementById('qrPreview');
+    const urlPreviewEl = document.getElementById('urlPreview');
+
+    let chosenFile = null;
+
+    fileInput.addEventListener('change', () => {
+      chosenFile = fileInput.files[0] || null;
+      if (chosenFile && !filenameEl.value) {
+        filenameEl.value = chosenFile.name;
+      }
+      updatePreview();
+      checkReady();
+    });
+    baseUrlEl.addEventListener('input', () => { updatePreview(); checkReady(); });
+    filenameEl.addEventListener('input', () => { updatePreview(); checkReady(); });
+
+    function targetUrl() {
+      const base = baseUrlEl.value.trim().replace(/\/+$/, '');
+      const name = filenameEl.value.trim();
+      if (!base || !name) return '';
+      return `${base}/pdfs/${encodeURIComponent(name)}`;
+    }
+
+    function updatePreview() {
+      const url = targetUrl();
+      if (!url) { previewEl.style.display = 'none'; return; }
+      previewEl.style.display = 'flex';
+      qrPreviewEl.innerHTML = '';
+      new QRCode(qrPreviewEl, {
+        text: url, width: 70, height: 70,
+        colorDark: '#23241F', colorLight: '#F7F3E8'
+      });
+      urlPreviewEl.textContent = url;
+    }
+
+    function checkReady() {
+      stampBtn.disabled = !(chosenFile && targetUrl());
+    }
+
+    stampBtn.addEventListener('click', async () => {
+      const url = targetUrl();
+      if (!chosenFile || !url) return;
+
+      statusEl.className = 'status';
+      statusEl.textContent = 'Stamping…';
+      stampBtn.disabled = true;
+
+      try {
+        // 1. Render a QR code to a canvas so we can grab its PNG bytes
+        const qrHolder = document.createElement('div');
+        new QRCode(qrHolder, {
+          text: url, width: 300, height: 300,
+          colorDark: '#000000', colorLight: '#ffffff'
+        });
+        await new Promise(r => setTimeout(r, 60)); // let it render
+        const qrCanvas = qrHolder.querySelector('canvas');
+        const qrPngDataUrl = qrCanvas.toDataURL('image/png');
+        const qrPngBytes = await (await fetch(qrPngDataUrl)).arrayBuffer();
+
+        // 2. Load the uploaded PDF
+        const { PDFDocument, rgb, StandardFonts } = PDFLib;
+        const srcBytes = await chosenFile.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(srcBytes);
+        const qrImage = await pdfDoc.embedPng(qrPngBytes);
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+        const qrSize = 60; // pt
+        const margin = 24;
+
+        for (const page of pdfDoc.getPages()) {
+          const { width } = page.getSize();
+          const x = width - qrSize - margin;
+          const y = margin;
+          page.drawRectangle({
+            x: x - 6, y: y - 6, width: qrSize + 12, height: qrSize + 22,
+            color: rgb(1, 1, 1), opacity: 0.85,
+          });
+          page.drawImage(qrImage, { x, y: y + 12, width: qrSize, height: qrSize });
+          page.drawText('scan for original', {
+            x, y: y, size: 6, font, color: rgb(0.15, 0.15, 0.13),
+          });
+        }
+
+        const stampedBytes = await pdfDoc.save();
+        const blob = new Blob([stampedBytes], { type: 'application/pdf' });
+        const dlUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = dlUrl;
+        a.download = filenameEl.value.trim();
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(dlUrl);
+
+        statusEl.className = 'status ok';
+        statusEl.textContent = `Done — downloaded "${filenameEl.value.trim()}". Move it into your pdfs folder and add it to files.js.`;
+      } catch (err) {
+        console.error(err);
+        statusEl.className = 'status err';
+        statusEl.textContent = 'Could not stamp this file — make sure it\'s a valid PDF and try again.';
+      } finally {
+        stampBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

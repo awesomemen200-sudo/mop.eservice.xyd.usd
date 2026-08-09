@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MOP — eservice document counter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="files.js"></script>
+<style>
+  :root{--paper:#E4DCC8;--surface:#F7F3E8;--ink:#23241F;--stamp:#B0362A;--olive:#55603F;--line:#B8A98A;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:Arial,sans-serif;}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 64px;}
+  .header{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px double var(--ink);padding-bottom:14px;margin-bottom:6px;flex-wrap:wrap;gap:12px;}
+  .logo{font-family:'Courier New',monospace;font-weight:700;font-size:42px;letter-spacing:2px;}
+  .logo span{color:var(--stamp);}
+  .tag{font-family:'Courier New',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--surface);background:var(--stamp);padding:5px 10px;transform:rotate(-2deg);display:inline-block;border:1px solid var(--ink);}
+  .sub{font-family:'Courier New',monospace;font-size:12px;letter-spacing:1px;color:var(--olive);text-transform:uppercase;margin:10px 0 30px;}
+  .empty{font-family:'Courier New',monospace;font-size:13px;color:#7a7460;padding:22px 4px;border-top:1px dashed var(--line);}
+  .ticket{display:flex;background:var(--surface);border:1px solid var(--ink);margin-bottom:16px;}
+  .ticket-main{flex:1;padding:14px 16px;min-width:0;}
+  .ticket-num{font-family:'Courier New',monospace;font-size:10px;color:var(--olive);letter-spacing:1px;}
+  .ticket-name{font-weight:600;font-size:14.5px;margin:4px 0 10px;word-break:break-word;}
+  .btn{display:inline-block;font-family:'Courier New',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--ink);color:var(--ink);padding:6px 10px;text-decoration:none;}
+  .btn:hover{background:var(--ink);color:var(--surface);}
+  .perf{width:0;border-left:2px dashed var(--line);position:relative;margin:10px 0;}
+  .perf::before,.perf::after{content:'';position:absolute;width:14px;height:14px;background:var(--paper);border-radius:50%;left:-8px;}
+  .perf::before{top:-7px;} .perf::after{bottom:-7px;}
+  .ticket-qr{width:118px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;gap:6px;}
+  .missing{font-family:'Courier New',monospace;font-size:15px;text-align:center;padding:40px 10px;color:var(--stamp);border:1px dashed var(--stamp);}
+  @media (max-width:480px){.ticket{flex-direction:column;} .ticket-qr{width:auto;flex-direction:row;border-top:1px dashed var(--line);}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo">M<span>O</span>P.</div>
+      <div class="tag">eservice</div>
+    </div>
+    <div class="sub">Scan any ticket to open its document</div>
+    <div id="list"></div>
+    <p style="font-family:'Courier New',monospace;font-size:11px;color:var(--olive);margin-top:24px;">
+      Adding a new PDF? <a href="stamp-tool.html" style="color:var(--stamp);">Stamp it with a QR code first &rarr;</a>
+    </p>
+  </div>
+
+  <script>
+    const listEl = document.getElementById('list');
+    const files = (typeof FILES !== 'undefined') ? FILES : [];
+
+    if (!files.length) {
+      listEl.innerHTML = '<div class="empty">No documents listed yet. Add filenames to files.js.</div>';
+    } else {
+      // Base URL = this page's own folder, wherever it's hosted
+      const base = window.location.href.replace(/index\.html?$/, '').replace(/\/$/, '');
+
+      files.forEach((name, i) => {
+        const url = `${base}/pdfs/${encodeURIComponent(name)}`;
+        const num = String(i + 1).padStart(3, '0');
+
+        const ticket = document.createElement('div');
+        ticket.className = 'ticket';
+        ticket.innerHTML = `
+          <div class="ticket-main">
+            <div class="ticket-num">TICKET NO. ${num}</div>
+            <div class="ticket-name">${name}</div>
+            <a class="btn" href="pdfs/${encodeURIComponent(name)}" target="_blank" rel="noopener">Open PDF</a>
+          </div>
+          <div class="perf"></div>
+          <div class="ticket-qr" id="qr-${i}"></div>
+        `;
+        listEl.appendChild(ticket);
+        new QRCode(document.getElementById('qr-' + i), {
+          text: url, width: 90, height: 90,
+          colorDark: '#23241F', colorLight: '#F7F3E8'
+        });
+      });
+    }
+  </script>
+</body>
+</html>
