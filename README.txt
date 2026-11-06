@@ -1,5 +1,3 @@
-# Define the HTML template with CSS styling matching official receipts
-html_content = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -177,8 +175,4 @@ html_content = """
 
 </body>
 </html>
-"""
 
-# Render the HTML content into a PDF file
-HTML(string=html_content).write_pdf("customs_receipt.pdf")
-print("PDF generated successfully as 'customs_receipt.pdf'!")
