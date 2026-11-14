@@ -1,25 +1,47 @@
-<a href="invoice.pdf" target="_blank">View pdf</a>
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Document Viewer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eServices MOP Trade</title>
+
     <style>
-        html, body {
+        * {
             margin: 0;
-            width: 100%;
-            height: 100%;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        iframe {
+        html, body {
             width: 100%;
             height: 100%;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .pdf-viewer {
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
             border: none;
+            display: block;
         }
     </style>
 </head>
 <body>
 
-<iframe src="document.pdf"></iframe>
+    <iframe
+        class="pdf-viewer"
+        src="invoice.pdf#view=FitH"
+        title="Invoice PDF">
+    </iframe>
+
+    <noscript>
+        <p>
+            <a href="invoice.pdf">Open PDF</a>
+        </p>
+    </noscript>
 
 </body>
 </html>
